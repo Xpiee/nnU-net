@@ -22,3 +22,16 @@ def recursive_find_python_class(folder: str, class_name: str, current_module: st
             if tr is not None:
                 break
     return tr
+
+
+
+if __name__ == '__main__':
+    import nnunetv2
+    dirK = os.listdir(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"))
+    print(dirK)
+    print(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"))
+
+    nnunet_trainer = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
+                                                 "nnUNetTrainer", 'nnunetv2.training.nnUNetTrainer')
+
+    print(nnunet_trainer)
