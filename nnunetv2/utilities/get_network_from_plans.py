@@ -15,6 +15,7 @@ def get_network_from_plans(arch_class_name, arch_kwargs, arch_kwargs_req_import,
             architecture_kwargs[ri] = pydoc.locate(architecture_kwargs[ri])
 
     nw_class = pydoc.locate(network_class)
+    print(f'##### network_class: {network_class} ##### \n ##### nw_class: {nw_class} ##### \n\n')
     # sometimes things move around, this makes it so that we can at least recover some of that
     if nw_class is None:
         warnings.warn(f'Network class {network_class} not found. Attempting to locate it within '
