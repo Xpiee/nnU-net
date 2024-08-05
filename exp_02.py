@@ -24,7 +24,7 @@ from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 logging.basicConfig(level=logging.WARNING)
 from nnunetv2.training.nnUNetTrainer.nnUnetSegClsTrainer import nnUnetSegClsTrainer
 
-fold = 0
+fold = 'all'
 
 # Define the necessary arguments
 args = [
@@ -40,7 +40,8 @@ args = [
 sys.argv = args
 
 if __name__ == '__main__':
-    # This is necessary for Windows and macOS to prevent the 'RuntimeError: An attempt has been made to start a new process before the current process has finished its bootstrapping phase.'
+    # This is necessary for Windows and macOS to prevent the 'RuntimeError: An attempt has been made to start a \
+    # new process before the current process has finished its bootstrapping phase.'
     multiprocessing.set_start_method('spawn', force=True)
     run_training_entry()
 

@@ -11,7 +11,7 @@ class nnUNetSegClsDataset(object):
     def __init__(self, folder: str, case_identifiers: List[str] = None,
                  num_images_properties_loading_threshold: int = 0,
                  folder_with_segs_from_previous_stage: str = None,
-                 load_classification_labels: bool = False):
+                 load_classification_labels: bool = True):
         """
         This does not actually load the dataset. It merely creates a dictionary where the keys are training case names and
         the values are dictionaries containing the relevant information for that case.
