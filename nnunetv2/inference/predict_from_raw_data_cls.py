@@ -138,7 +138,6 @@ class nnUNetSegClsPredictor(nnUNetPredictor):
         with multiprocessing.get_context("spawn").Pool(num_processes_segmentation_export) as export_pool:
             worker_list = [i for i in export_pool._pool]
             r = []
-            print(f"##### list of keys in the data iterator: {data_iterator.keys()} \n\n\n")
 
             for preprocessed in data_iterator:
                 data = preprocessed['data']
@@ -536,7 +535,7 @@ class nnUNetSegClsPredictor(nnUNetPredictor):
         np.save(classification_output_file, predicted_classification)
 
 
-    ## Anubhav: Not Sure about this. 
+    ## Anubhav: Not Sure about this. Not updated. Pipeline will most likely break if this is used.
     def predict_single_npy_array(self, input_image: np.ndarray, image_properties: dict,
                                  segmentation_previous_stage: np.ndarray = None,
                                  output_file_truncated: str = None,

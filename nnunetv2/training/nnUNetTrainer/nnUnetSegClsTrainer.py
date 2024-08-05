@@ -54,7 +54,7 @@ class nnUnetSegClsTrainer(nnUNetTrainer):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 1
+        self.num_epochs = 50
         self.initial_lr = 1e-2
         self.alpha = 0.5
         self.logger = nnUnetSegClsLogger()
@@ -656,6 +656,8 @@ class SegClsNet(nn.Module):
         # print(f"pooled_features: {pooled_features.shape}")
 
         classification_output = self.fc(pooled_features)
+
+        # print(f"### classification output size: {classification_output.shape}\n\n")
 
         return self.decoder(skips), classification_output
 
