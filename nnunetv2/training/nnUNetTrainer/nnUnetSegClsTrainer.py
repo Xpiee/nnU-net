@@ -95,28 +95,8 @@ class nnUnetSegClsTrainer(nnUNetTrainer):
         nonlin_kwargs = architecture_kwargs.pop('nonlin_kwargs')
 
 
-        ## Vanilla Segmentation and Classification Network
-        # network = SegClsNet(num_input_channels,
-        #                     n_stages=n_stages,
-        #                     features_per_stage=features_per_stage,
-        #                     conv_op=conv_op,
-        #                     kernel_sizes=kernel_sizes,
-        #                     strides=strides,
-        #                     n_conv_per_stage=n_conv_per_stage,
-        #                     num_classes=num_output_channels,
-        #                     n_conv_per_stage_decoder=n_conv_per_stage_decoder,
-        #                     conv_bias=conv_bias,
-        #                     norm_op=norm_op,
-        #                     norm_op_kwargs=norm_op_kwargs,
-        #                     dropout_op=dropout_op,
-        #                     dropout_op_kwargs=dropout_op_kwargs,
-        #                     nonlin=nonlin,
-        #                     nonlin_kwargs=nonlin_kwargs,
-        #                     **architecture_kwargs)
-
-
-        ## Segmentation and Classification with Attention Network
-        network = SegClsAttnNet(num_input_channels,
+        # Vanilla Segmentation and Classification Network
+        network = SegClsNet(num_input_channels,
                             n_stages=n_stages,
                             features_per_stage=features_per_stage,
                             conv_op=conv_op,
@@ -133,6 +113,26 @@ class nnUnetSegClsTrainer(nnUNetTrainer):
                             nonlin=nonlin,
                             nonlin_kwargs=nonlin_kwargs,
                             **architecture_kwargs)
+
+
+        # ## Segmentation and Classification with Attention Network
+        # network = SegClsAttnNet(num_input_channels,
+        #                     n_stages=n_stages,
+        #                     features_per_stage=features_per_stage,
+        #                     conv_op=conv_op,
+        #                     kernel_sizes=kernel_sizes,
+        #                     strides=strides,
+        #                     n_conv_per_stage=n_conv_per_stage,
+        #                     num_classes=num_output_channels,
+        #                     n_conv_per_stage_decoder=n_conv_per_stage_decoder,
+        #                     conv_bias=conv_bias,
+        #                     norm_op=norm_op,
+        #                     norm_op_kwargs=norm_op_kwargs,
+        #                     dropout_op=dropout_op,
+        #                     dropout_op_kwargs=dropout_op_kwargs,
+        #                     nonlin=nonlin,
+        #                     nonlin_kwargs=nonlin_kwargs,
+        #                     **architecture_kwargs)
 
         return network
 
