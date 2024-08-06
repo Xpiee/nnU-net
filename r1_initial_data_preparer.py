@@ -4,21 +4,6 @@ import logging
 import SimpleITK as sitk
 import numpy as np
 
-basePath = "/home/bhatti_uhn"
-
-# set environment variable here.
-os.environ["nnUNet_preprocessed"] = f"{basePath}/nnUNet_preprocessed"
-os.environ["nnUNet_results"] = f"{basePath}/nnUNet_results"
-os.environ["nnUNet_raw"] = f"{basePath}/nnUNet_raw"
-
-# Ensure that environment variables are set correctly
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-
-from nnunetv2.dataset_conversion import generate_dataset_json
-from nnunetv2.run.run_training import run_training_entry
-
 logging.basicConfig(level=logging.WARNING)
 
 class InitialDataPreparer:
@@ -111,8 +96,23 @@ class InitialDataPreparer:
         self.fix_spacing_issue_in_segmentation_files()
 
 if __name__ == "__main__":
-    base_dir = '/home/bhatti_uhn/Dataset/UHN-MedImg3D-ML-quiz'
-    nnunet_base = '/home/bhatti_uhn/nnUNet_raw/Dataset876_UHNMedImg3D'
+
+    basePath = "/home/bhatti_uhn"
+
+    # set environment variable here.
+    os.environ["nnUNet_preprocessed"] = f"{basePath}/nnUNet_preprocessed"
+    os.environ["nnUNet_results"] = f"{basePath}/nnUNet_results"
+    os.environ["nnUNet_raw"] = f"{basePath}/nnUNet_raw"
+
+    # Ensure that environment variables are set correctly
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+    from nnunetv2.dataset_conversion import generate_dataset_json
+
+    base_dir = f'{basePath}/Dataset/UHN-MedImg3D-ML-quiz'
+    nnunet_base = f'{basePath}/nnUNet_raw/Dataset876_UHNMedImg3D'
     
     trainDir = 'train'
     testDir = 'test'
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     idp.run_data_preparer()
 
     ## for validation set
-    nnunet_base_val = '/home/bhatti_uhn/nnUNet_raw/Dataset877_UHNMedImg3DVAL'
+    nnunet_base_val = f'{basePath}/nnUNet_raw/Dataset877_UHNMedImg3DVAL'
     idp_val = InitialDataPreparer(base_dir, nnunet_base_val, 'validation', 'test')
     idp_val.run_data_preparer()
 
