@@ -36,7 +36,7 @@ if __name__ == "__main__":
     # FOR TEST SET!
     predictor.predict_from_files(
         join(nnUNet_raw, "Dataset876_UHNMedImg3D/imagesTs"),
-        join(nnUNet_raw, "Dataset876_UHNMedImg3D/imagesTs_3d_fullres"),
+        join(nnUNet_raw, "Dataset876_UHNMedImg3D/imagesTs_3d_fullres1"),
         save_probabilities=False,
         overwrite=False,
         num_processes_preprocessing=2,
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # FOR Validation SET!
     predictor.predict_from_files(
         join(nnUNet_raw, "Dataset877_UHNMedImg3DVAL/imagesTr"),
-        join(nnUNet_raw, "Dataset877_UHNMedImg3DVAL/imagesTr_3d_fullres"),
+        join(nnUNet_raw, "Dataset877_UHNMedImg3DVAL/imagesTr_3d_fullres1"),
         save_probabilities=False,
         overwrite=False,
         num_processes_preprocessing=2,

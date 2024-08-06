@@ -47,14 +47,13 @@ from nnunetv2.inference.export_prediction import export_prediction_from_logits, 
 from nnunetv2.evaluation.evaluate_predictions import compute_metrics_on_folder
 from nnunetv2.inference.sliding_window_prediction import compute_gaussian
 
-
-
+import torch.nn.functional as F
 
 class nnUnetSegClsTrainer(nnUNetTrainer):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans, configuration, fold, dataset_json, unpack_dataset, device)
-        self.num_epochs = 50
+        self.num_epochs = 10
         self.initial_lr = 1e-2
         self.alpha = 0.5
         self.logger = nnUnetSegClsLogger()
@@ -95,7 +94,29 @@ class nnUnetSegClsTrainer(nnUNetTrainer):
         nonlin = architecture_kwargs.pop('nonlin')
         nonlin_kwargs = architecture_kwargs.pop('nonlin_kwargs')
 
-        network = SegClsNet(num_input_channels,
+
+        ## Vanilla Segmentation and Classification Network
+        # network = SegClsNet(num_input_channels,
+        #                     n_stages=n_stages,
+        #                     features_per_stage=features_per_stage,
+        #                     conv_op=conv_op,
+        #                     kernel_sizes=kernel_sizes,
+        #                     strides=strides,
+        #                     n_conv_per_stage=n_conv_per_stage,
+        #                     num_classes=num_output_channels,
+        #                     n_conv_per_stage_decoder=n_conv_per_stage_decoder,
+        #                     conv_bias=conv_bias,
+        #                     norm_op=norm_op,
+        #                     norm_op_kwargs=norm_op_kwargs,
+        #                     dropout_op=dropout_op,
+        #                     dropout_op_kwargs=dropout_op_kwargs,
+        #                     nonlin=nonlin,
+        #                     nonlin_kwargs=nonlin_kwargs,
+        #                     **architecture_kwargs)
+
+
+        ## Segmentation and Classification with Attention Network
+        network = SegClsAttnNet(num_input_channels,
                             n_stages=n_stages,
                             features_per_stage=features_per_stage,
                             conv_op=conv_op,
@@ -649,7 +670,6 @@ class SegClsNet(nn.Module):
 
         # apply classifier head to the last layer of the encoder. For simplicity. 
         # Can have more complex head with attention applied to all layers.
-
         encoded_features = skips[-1] # skips[-1].shape = torch.Size([3, 320, 4, 4, 6])
         pooled_features = self.global_avg_pool(encoded_features).view(encoded_features.size(0), -1) # pooled_features: torch.Size([3, 320])
 
@@ -670,3 +690,166 @@ class SegClsNet(nn.Module):
     @staticmethod
     def initialize(module):
         InitWeights_He(1e-2)(module)
+
+
+import torch
+import torch.nn as nn
+from typing import Union, List, Tuple, Type
+
+class SegClsAttnNet(nn.Module):
+    def __init__(self,
+                 input_channels: int,
+                 n_stages: int,
+                 features_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 conv_op: Type[nn.Module],
+                 kernel_sizes: Union[int, List[int], Tuple[int, ...]],
+                 strides: Union[int, List[int], Tuple[int, ...]],
+                 n_conv_per_stage: Union[int, List[int], Tuple[int, ...]],
+                 num_classes: int,
+                 n_conv_per_stage_decoder: Union[int, Tuple[int, ...], List[int]],
+                 conv_bias: bool = False,
+                 norm_op: Union[None, Type[nn.Module]] = None,
+                 norm_op_kwargs: dict = None,
+                 dropout_op: Union[None, Type[_DropoutNd]] = None,
+                 dropout_op_kwargs: dict = None,
+                 nonlin: Union[None, Type[torch.nn.Module]] = None,
+                 nonlin_kwargs: dict = None,
+                 deep_supervision: bool = False,
+                 nonlin_first: bool = False
+                 ):
+        super().__init__()
+        if isinstance(n_conv_per_stage, int):
+            n_conv_per_stage = [n_conv_per_stage] * n_stages
+        if isinstance(n_conv_per_stage_decoder, int):
+            n_conv_per_stage_decoder = [n_conv_per_stage_decoder] * (n_stages - 1)
+        assert len(n_conv_per_stage) == n_stages, "n_conv_per_stage must have as many entries as we have resolution stages."
+        assert len(n_conv_per_stage_decoder) == (n_stages - 1), "n_conv_per_stage_decoder must have one less entry as we have resolution stages."
+
+        self.encoder = PlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
+                                        n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
+                                        dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
+                                        nonlin_first=nonlin_first)
+        self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
+                                   nonlin_first=nonlin_first)
+
+        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+        self.fc = nn.Linear(320, 3)  # Assuming 320 features per stage
+
+        # Attention layers
+        self.attention_layers = nn.ModuleList([AttentionBlock(320, features_per_stage[i]) for i in range(n_stages)])
+
+        # Memory vector initialization (fixed dimension 200x320)
+        self.memory = nn.Parameter(torch.randn(200, 320))
+
+    def forward(self, x):
+        skips = self.encoder(x)
+        
+        # Expand memory to match the batch size
+        batch_size = x.size(0)
+        memory = self.memory.expand(batch_size, -1, -1)
+        
+        # Apply attention to the memory and skips
+        for i in range(len(skips)):
+            # print(f"#### memory shape before attention: {memory.shape}\n\n\n")
+            # print(f"#### skip shape before attention at {i}: {skips[i].shape}\n\n\n")
+            memory = self.attention_layers[i](memory, skips[i])
+        
+        decoder_output = self.decoder(skips)
+        
+        # print(f"#### memory shape befor avpool: {memory.shape}\n\n\n") # #### memory shape befor avpool: torch.Size([3, 200, 320])
+        # pooled_features = self.global_avg_pool(memory.reshape(memory.size(0), memory.size(2), -1)) #.view(memory.size(0), -1)
+        
+        pooled_features = self.global_avg_pool(memory.permute(0, 2, 1)).view(memory.size(0), -1)
+        # print(f"#### memory shape after avpool: {pooled_features.shape}\n\n\n") # torch.size([3, 320])
+
+        classification_output = self.fc(pooled_features)
+        
+        return decoder_output, classification_output
+
+    def compute_conv_feature_map_size(self, input_size):
+        assert len(input_size) == convert_conv_op_to_dim(self.encoder.conv_op), "just give the image size without color/feature channels or " \
+                                                            "batch channel. Do not give input_size=(b, c, x, y(, z)). " \
+                                                            "Give input_size=(x, y(, z))!"
+        return self.encoder.compute_conv_feature_map_size(input_size) + self.decoder.compute_conv_feature_map_size(input_size)
+
+    @staticmethod
+    def initialize(module):
+        InitWeights_He(1e-2)(module)
+
+class PositionalEmbedding(nn.Module):
+    def __init__(self, embed_dim, output_dim=5000):
+        super(PositionalEmbedding, self).__init__()
+        self.position_embedding = nn.Parameter(torch.zeros(embed_dim, output_dim))
+
+    def forward(self, x):
+        seq_len = x.size(1)
+        # print(f"#### skips shape before permute and FC: {x.shape}\n\n\n")
+
+        # expand the position embedding to match the x shape
+        pos_embedding = self.position_embedding[:seq_len, :].unsqueeze(0).expand(x.size(0), -1, -1)
+        
+        # print(f"#### pos_embedding shape: {pos_embedding.shape}\n\n\n") 
+
+        return x + pos_embedding
+
+class InterpolateAndProject(nn.Module):
+    def __init__(self, target_shape, input_dim, output_dim):
+        super(InterpolateAndProject, self).__init__()
+        self.target_shape = target_shape  # (H, W, D)
+        self.linear_proj = nn.Linear(input_dim, output_dim)
+        self.pos_embedding = PositionalEmbedding(target_shape[0] * target_shape[1] * target_shape[2], output_dim)
+
+    def forward(self, x):
+        # Interpolate to the target shape
+        x = F.interpolate(x, size=self.target_shape, mode='trilinear', align_corners=True)
+
+        # Reshape to (batch_size, H*W*D, input_dim)
+        self.batch_size, channels, H, W, D = x.shape
+        x = x.view(self.batch_size, channels, -1).permute(0, 2, 1)  # (batch_size, H*W*D, input_dim)
+
+        # print(f"#### skips shape before permute and FC: {x.shape}\n\n\n")  # 
+        # Project to the desired dimension
+        x = self.linear_proj(x)  # (batch_size, H*W*D, output_dim)
+        # print(f"#### skips shape after projection: {x.shape}\n\n\n")  # #### torch.Size([3, 32768, 320])
+
+        # Add positional embedding
+        x = self.pos_embedding(x)
+        
+        return x
+
+
+class AttentionBlock(nn.Module):
+    def __init__(self, dim_memory, dim_skips):
+        super().__init__()
+        self.self_attn = nn.MultiheadAttention(embed_dim=dim_memory, num_heads=8)
+        self.cross_attn = nn.MultiheadAttention(embed_dim=dim_memory, num_heads=8)
+        self.norm1 = nn.LayerNorm(dim_memory)
+        self.norm2 = nn.LayerNorm(dim_memory)
+        self.pos_embedding = PositionalEmbedding(dim_memory)
+        self.fc = nn.Linear(dim_memory, dim_skips)  # Fully connected layer to match dimensions [32, 320]
+
+        self.interp_and_project = InterpolateAndProject((5, 8, 5), dim_skips, dim_memory)
+
+    def forward(self, memory, skips):
+
+        skips = self.interp_and_project(skips)
+
+        # print(f"#### skips shape after permute and FC: {skips.shape}\n\n\n")  # torch.Size([3, 200, 320])
+        
+        memory = memory.flatten(2).permute(1, 0, 2)  # Shape (Sequence length, Batch size, Embedding dimension)
+        skips = skips.flatten(2).permute(1, 0, 2)    # Shape (S, N, E)
+                
+        # print(f"#### memory shape after permute: {memory.shape}\n\n\n")  # torch.Size([320, 3, 200]
+        # print(f"#### skips shape after permute and FC: {skips.shape}\n\n\n")  # torch.Size([320, 3, 200]
+        
+        # Self-attention
+        attn_output, _ = self.self_attn(memory, memory, memory) # doesn't seem right. Would to have check the math for this. 
+        memory = self.norm1(memory + attn_output)
+        
+        # Cross-attention
+        attn_output, _ = self.cross_attn(memory, skips, skips)
+        memory = self.norm2(memory + attn_output)
+        
+        # print(f"#### memory shape after cross attn: {memory.shape}\n\n\n")
+
+        return memory.permute(1, 0, 2)
