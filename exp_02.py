@@ -47,5 +47,6 @@ if __name__ == '__main__':
 
     # TODO: Add the code to run the inference here. Done!
     # TODO: add a bit more complex decoder for classification task. 
-    # TODO: Start looking at the reporting stuff. What needs to be reported and get prediction results from validation set and test set provided in the Quiz.
+    # TODO: Start looking at the reporting stuff. 
+    # What needs to be reported and get prediction results from validation set and test set provided in the Quiz.
     # TODO: List down all the changes and additions that I have made to the nnU-Net codebase. Important.
