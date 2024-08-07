@@ -147,5 +147,4 @@ if __name__ == "__main__":
         idp_val = InitialDataPreparer(base_dir, nnunet_base_val, 'validation', testDir)
         idp_val.run_data_preparer()
 
-    ### Run integrity check on the dataset and prepare preprocessed dataset.
-    # !nnUNetv2_plan_and_preprocess -d 876 --verify_dataset_integrity
+    ## use r1_dataprep.sh to run the whole script with verifying dataset integrity
