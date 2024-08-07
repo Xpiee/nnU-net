@@ -3,6 +3,7 @@ import shutil
 import logging
 import SimpleITK as sitk
 import numpy as np
+import argparse
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -24,7 +25,6 @@ class InitialDataPreparer:
         
         self.channel_names = {0: "CT"}
         self.labels = {'background': 0, 'pancreas': 1, 'lesion': 2}
-        self.num_training_cases = len(os.listdir(self.images_tr_dir))
         self.file_ending = '.nii.gz'
 
     def copy_files_to_raw(self):
@@ -76,6 +76,7 @@ class InitialDataPreparer:
             print(f"Corrected segmentation saved to {seg_path}")
 
     def generate_dataset_json_from_data(self):
+        self.num_training_cases = len(os.listdir(self.images_tr_dir))
         generate_dataset_json.generate_dataset_json(self.nnunet_base, self.channel_names, self.labels, self.num_training_cases, self.file_ending)
     
     def fix_spacing_issue_in_segmentation_files(self):
@@ -97,7 +98,19 @@ class InitialDataPreparer:
 
 if __name__ == "__main__":
 
-    basePath = "/home/bhatti_uhn"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--basepath", help="set base path to dataset", type=str)
+    parser.add_argument("--datasetid", help="set dataset id", type=int)
+    parser.add_argument("--basedataset", help="set name of base dataset", type=str)
+    parser.add_argument("--prepare_val", help="prepare validation dataset, 0: False", type=int)
+
+    args = parser.parse_args()
+    # basePath = "/home/bhatti_uhn"
+    basePath = args.basepath
+    datasetID = args.datasetid
+    baseDataset = args.basedataset
+
+    assert datasetID > 800, "Dataset ID should be greater than 800. Just to be safe. I used 876 for the experiments."
 
     # set environment variable here.
     os.environ["nnUNet_preprocessed"] = f"{basePath}/nnUNet_preprocessed"
@@ -110,19 +123,29 @@ if __name__ == "__main__":
     os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
     from nnunetv2.dataset_conversion import generate_dataset_json
+    # base_dir = f'{basePath}/Dataset/UHN-MedImg3D-ML-quiz'
+    base_dir = f'{basePath}/Dataset/{baseDataset}'
 
-    base_dir = f'{basePath}/Dataset/UHN-MedImg3D-ML-quiz'
-    nnunet_base = f'{basePath}/nnUNet_raw/Dataset876_UHNMedImg3D'
+    # check if the dataset is present in base_dir
+    assert os.path.exists(base_dir), f"Dataset {baseDataset} not found in {base_dir}. Please check the dataset path."
+
+    nnunet_base = f'{basePath}/nnUNet_raw/Dataset{datasetID}_UHNMedImg3D'
     
     trainDir = 'train'
     testDir = 'test'
+
     idp = InitialDataPreparer(base_dir, nnunet_base, trainDir, testDir)
     idp.run_data_preparer()
 
-    ## for validation set
-    nnunet_base_val = f'{basePath}/nnUNet_raw/Dataset877_UHNMedImg3DVAL'
-    idp_val = InitialDataPreparer(base_dir, nnunet_base_val, 'validation', 'test')
-    idp_val.run_data_preparer()
+    prepareValidation = False if args.prepare_val == 0 else True
+    
+    # not mixing validation and train/test data
+    valDatasetID = datasetID + 1
+    if prepareValidation:
+        ## for validation set
+        nnunet_base_val = f'{basePath}/nnUNet_raw/Dataset{valDatasetID}_UHNMedImg3DVAL'
+        idp_val = InitialDataPreparer(base_dir, nnunet_base_val, 'validation', testDir)
+        idp_val.run_data_preparer()
 
     ### Run integrity check on the dataset and prepare preprocessed dataset.
     # !nnUNetv2_plan_and_preprocess -d 876 --verify_dataset_integrity
