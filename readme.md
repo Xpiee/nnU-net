@@ -18,7 +18,7 @@ This repository includes modifications to the nnUNet framework to support classi
 - **Decoder**: Standard UNet decoder for segmentation tasks.
 - **Classification Head**: A simple, fully connected layer added to the end of the encoder for classification tasks.
 
-### 2. Encoder-Decoder with Attention Mechanisms
+### 2. Encoder-Decoder with Attention Mechanisms [WIP]
 - **Self-Attention**: Applied self-attention layers to the encoder outputs to capture dependencies within the feature maps.
 - **Cross-Attention**: Employed cross-attention layers between the memory vector and encoder outputs to enhance classification.
 - **Memory Vector**: A fixed dimension memory vector (200x320) used to store global context for classification.
