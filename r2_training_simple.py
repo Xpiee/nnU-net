@@ -14,12 +14,12 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
-import nnunetv2
-from nnunetv2.dataset_conversion import generate_dataset_json
+# import nnunetv2
+# from nnunetv2.dataset_conversion import generate_dataset_json
 from nnunetv2.run.run_training import run_training_entry
 import logging
-from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
-from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
+# from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
+# from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
 
 logging.basicConfig(level=logging.WARNING)
 from nnunetv2.training.nnUNetTrainer.nnUnetSegClsTrainer import nnUnetSegClsTrainer
@@ -40,6 +40,7 @@ args = [
 sys.argv = args
 
 if __name__ == '__main__':
+    # Do we really need this code now? can directly call run_training_entry() function.
     # This is necessary for Windows and macOS to prevent the 'RuntimeError: An attempt has been made to start a \
     # new process before the current process has finished its bootstrapping phase.'
     multiprocessing.set_start_method('spawn', force=True)
